@@ -1,0 +1,21 @@
+{
+  "name": "qlpt-microservices",
+  "version": "1.0.0",
+  "description": "Quản lý phòng trọ microservices",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "concurrently \"cd backend/services/user-service && npm run dev\" \"cd backend/services/apartment-service && npm run dev\" \"cd backend/services/payment-service && npm run dev\"",
+    "dev:user": "cd backend/services/user-service && npm run dev",
+    "dev:apartment": "cd backend/services/apartment-service && npm run dev",
+    "dev:payment": "cd backend/services/payment-service && npm run dev"
+  },
+  "dependencies": {
+    "colors": "^1.4.0",
+    "dotenv": "^16.4.7",
+    "mongoose": "^8.12.1",
+    "qlpt-microservices": "file:"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

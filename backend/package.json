@@ -1,0 +1,29 @@
+{
+  "name": "qlpt-microservices-backend",
+  "version": "1.0.0",
+  "description": "Hệ thống quản lý phòng trọ - Microservices Backend",
+  "main": "start-all.js",
+  "scripts": {
+    "start": "node start-all.js",
+    "check": "node scripts/checkServices.js",
+    "check-env": "node scripts/checkEnvUris.js",
+    "fix-env": "node scripts/fixAllEnvFiles.js",
+    "init-db": "node scripts/initAllDbs.js",
+    "check-db": "node scripts/checkAtlasDb.js"
+  },
+  "keywords": [
+    "microservices",
+    "nodejs",
+    "express",
+    "mongodb",
+    "apartment-management"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.7",
+    "colors": "^1.4.0",
+    "dotenv": "^16.4.5",
+    "qlpt-microservices-backend": "file:"
+  }
+}
