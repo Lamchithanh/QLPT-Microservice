@@ -1,5 +1,6 @@
 const dotenv = require("dotenv");
 const path = require("path");
+const logger = require("./config/logger");
 
 // Load biến môi trường
 dotenv.config({ path: path.join(__dirname, ".env") });
@@ -10,8 +11,8 @@ const mongoose = require("mongoose");
 
 // Xử lý lỗi không được xử lý
 process.on("uncaughtException", (err) => {
-  console.error("UNCAUGHT EXCEPTION! Shutting down...");
-  console.error(err.name, err.message);
+  logger.error("UNCAUGHT EXCEPTION! Shutting down...");
+  logger.error(`${err.name}: ${err.message}`, { stack: err.stack });
   process.exit(1);
 });
 
@@ -52,19 +53,23 @@ app.get("/api/health", (req, res) => {
 // Kết nối đến database và khởi động server
 connectDB()
   .then(() => {
-    console.log("Connected to MongoDB");
+    logger.info("Connected to MongoDB");
 
     // Khởi động server
     const PORT = process.env.PORT || 5002;
     const server = app.listen(PORT, () => {
-      console.log(`Apartment Service is running on port ${PORT}`);
-      console.log(`MongoDB URI: ${process.env.MONGO_URI.substring(0, 25)}...`);
+      logger.info(`Apartment Service is running on port ${PORT}`);
+
+      // Hiển thị URI MongoDB an toàn (ẩn mật khẩu)
+      const mongoURI = process.env.MONGODB_URI || "";
+      const safeMongoURI = mongoURI.replace(/:([^@]+)@/, ":****@");
+      logger.info(`MongoDB URI: ${safeMongoURI}`);
     });
 
     // Xử lý lỗi không được xử lý trong promise
     process.on("unhandledRejection", (err) => {
-      console.error("UNHANDLED REJECTION! Shutting down...");
-      console.error(err.name, err.message);
+      logger.error("UNHANDLED REJECTION! Shutting down...");
+      logger.error(`${err.name}: ${err.message}`, { stack: err.stack });
       server.close(() => {
         process.exit(1);
       });
@@ -72,13 +77,16 @@ connectDB()
 
     // Xử lý SIGTERM
     process.on("SIGTERM", () => {
-      console.log("SIGTERM RECEIVED. Shutting down gracefully");
+      logger.info("SIGTERM RECEIVED. Shutting down gracefully");
       server.close(() => {
-        console.log("Process terminated!");
+        logger.info("Process terminated!");
       });
     });
   })
   .catch((err) => {
-    console.error("Database connection error:", err);
+    logger.error("Database connection error:", {
+      error: err.message,
+      stack: err.stack,
+    });
     process.exit(1);
   });

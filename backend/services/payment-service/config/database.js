@@ -1,44 +1,63 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const path = require("path");
+const logger = require("./logger");
 
 // Chỉ định đường dẫn chính xác đến file .env
 dotenv.config({ path: path.join(__dirname, "../.env") });
 
+/**
+ * Kết nối đến MongoDB
+ * @returns {Promise} Promise kết nối
+ */
 const connectDB = async () => {
   try {
-    // Kiểm tra URI kết nối
-    if (!process.env.MONGO_URI) {
-      throw new Error("MONGO_URI không được định nghĩa trong file .env");
+    const mongoURI = process.env.MONGODB_URI;
+
+    if (!mongoURI) {
+      throw new Error("MongoDB URI không được cấu hình trong biến môi trường");
     }
 
-    // Kiểm tra tên database trong URI
-    const dbName = process.env.MONGO_URI.split("/").pop().split("?")[0];
-    if (dbName.toLowerCase() === "qlpt") {
-      console.warn(
-        "CẢNH BÁO: Bạn đang kết nối đến database QLPT thay vì database riêng biệt!"
-      );
-      console.warn("Vui lòng kiểm tra lại URI kết nối trong file .env");
-    }
-
-    // Kết nối đến MongoDB với tên database chính xác
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
+    // Cấu hình kết nối MongoDB
+    const options = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // Timeout sau 5s nếu không thể kết nối
+      maxPoolSize: 10, // Số lượng kết nối tối đa trong pool
+    };
+
+    // Kết nối đến MongoDB
+    await mongoose.connect(mongoURI, options);
+
+    logger.info("Kết nối thành công đến MongoDB");
+
+    // Xử lý sự kiện kết nối
+    mongoose.connection.on("error", (err) => {
+      logger.error("Lỗi kết nối MongoDB:", { error: err.message });
     });
 
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-    console.log(`Database Name: ${conn.connection.name}`);
-    console.log(
-      `Connection State: ${
-        mongoose.connection.readyState === 1 ? "Connected" : "Disconnected"
-      }`
-    );
+    mongoose.connection.on("disconnected", () => {
+      logger.warn("Mất kết nối đến MongoDB");
+    });
 
-    return conn;
+    mongoose.connection.on("reconnected", () => {
+      logger.info("Đã kết nối lại với MongoDB");
+    });
+
+    // Xử lý khi ứng dụng đóng
+    process.on("SIGINT", async () => {
+      await mongoose.connection.close();
+      logger.info("Đã đóng kết nối MongoDB do ứng dụng kết thúc");
+      process.exit(0);
+    });
+
+    return mongoose.connection;
   } catch (error) {
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
+    logger.error("Không thể kết nối đến MongoDB:", {
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
   }
 };
 

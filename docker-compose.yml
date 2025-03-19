@@ -1,0 +1,202 @@
+version: "3.8"
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - qlpt-network
+
+  # Redis (Caching)
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - qlpt-network
+
+  # Consul (Service Discovery)
+  consul:
+    image: hashicorp/consul:latest
+    container_name: consul
+    ports:
+      - "${CONSUL_PORT:-8500}:8500"
+      - "8600:8600/udp"
+    command: "agent -dev -ui -client=0.0.0.0"
+    networks:
+      - qlpt-network
+
+  # RabbitMQ (Message Broker)
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-chithanh}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-chithanh}
+    networks:
+      - qlpt-network
+
+  # API Gateway
+  api-gateway:
+    build: ./backend/gateway
+    container_name: api-gateway
+    restart: always
+    ports:
+      - "${API_GATEWAY_PORT:-5000}:5000"
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+      - USER_SERVICE_URL=http://user-service:5001
+      - APARTMENT_SERVICE_URL=http://apartment-service:5002
+      - PAYMENT_SERVICE_URL=http://payment-service:5003
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-30d}
+      - CONSUL_HOST=${CONSUL_HOST:-consul}
+      - CONSUL_PORT=${CONSUL_PORT:-8500}
+      - USE_SERVICE_DISCOVERY=false
+      - SERVICE_NAME=api-gateway
+      - SERVICE_ID=api-gateway-1
+      - SERVICE_HOST=api-gateway
+      - SERVICE_PORT=5000
+      - HEALTH_CHECK_URL=http://api-gateway:5000/
+      - RABBITMQ_URL=amqp://${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}
+      - RABBITMQ_USER=${RABBITMQ_USER:-chithanh}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-chithanh}
+      - USE_MESSAGE_BROKER=true
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
+      - USE_REDIS_CACHE=true
+      - CORS_ORIGIN=*
+      - LOG_LEVEL=info
+    depends_on:
+      - consul
+      - rabbitmq
+      - redis
+      - user-service
+      - apartment-service
+      - payment-service
+    networks:
+      - qlpt-network
+
+  # User Service
+  user-service:
+    build: ./backend/services/user-service
+    container_name: user-service
+    restart: always
+    ports:
+      - "${USER_SERVICE_PORT:-5001}:5001"
+    environment:
+      - PORT=5001
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb+srv://thanh0981911449:pfAqdeBRPJEj3vJa@qlpt.ww2qx.mongodb.net/qlpt_user_service
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-30d}
+      - CONSUL_HOST=${CONSUL_HOST:-consul}
+      - CONSUL_PORT=${CONSUL_PORT:-8500}
+      - USE_SERVICE_DISCOVERY=false
+      - SERVICE_NAME=user-service
+      - SERVICE_ID=user-service-1
+      - SERVICE_HOST=user-service
+      - SERVICE_PORT=5001
+      - HEALTH_CHECK_URL=http://user-service:5001/
+      - RABBITMQ_URL=amqp://${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}
+      - RABBITMQ_USER=${RABBITMQ_USER:-chithanh}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-chithanh}
+      - USE_MESSAGE_BROKER=true
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
+      - USE_REDIS_CACHE=true
+      - LOG_LEVEL=info
+    depends_on:
+      - consul
+      - rabbitmq
+      - redis
+    networks:
+      - qlpt-network
+
+  # Apartment Service
+  apartment-service:
+    build: ./backend/services/apartment-service
+    container_name: apartment-service
+    restart: always
+    ports:
+      - "${APARTMENT_SERVICE_PORT:-5002}:5002"
+    environment:
+      - PORT=5002
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb+srv://thanh0981911449:pfAqdeBRPJEj3vJa@qlpt.ww2qx.mongodb.net/qlpt_apartment_service
+      - JWT_SECRET=${JWT_SECRET}
+      - CONSUL_HOST=${CONSUL_HOST:-consul}
+      - CONSUL_PORT=${CONSUL_PORT:-8500}
+      - USE_SERVICE_DISCOVERY=false
+      - SERVICE_NAME=apartment-service
+      - SERVICE_ID=apartment-service-1
+      - SERVICE_HOST=apartment-service
+      - SERVICE_PORT=5002
+      - HEALTH_CHECK_URL=http://apartment-service:5002/
+      - RABBITMQ_URL=amqp://${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}
+      - RABBITMQ_USER=${RABBITMQ_USER:-chithanh}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-chithanh}
+      - USE_MESSAGE_BROKER=true
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
+      - USE_REDIS_CACHE=true
+      - LOG_LEVEL=info
+    depends_on:
+      - consul
+      - rabbitmq
+      - redis
+    networks:
+      - qlpt-network
+
+  # Payment Service
+  payment-service:
+    build: ./backend/services/payment-service
+    container_name: payment-service
+    restart: always
+    ports:
+      - "${PAYMENT_SERVICE_PORT:-5003}:5003"
+    environment:
+      - PORT=5003
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb+srv://thanh0981911449:pfAqdeBRPJEj3vJa@qlpt.ww2qx.mongodb.net/qlpt_payment_service
+      - JWT_SECRET=${JWT_SECRET}
+      - CONSUL_HOST=${CONSUL_HOST:-consul}
+      - CONSUL_PORT=${CONSUL_PORT:-8500}
+      - USE_SERVICE_DISCOVERY=false
+      - SERVICE_NAME=payment-service
+      - SERVICE_ID=payment-service-1
+      - SERVICE_HOST=payment-service
+      - SERVICE_PORT=5003
+      - HEALTH_CHECK_URL=http://payment-service:5003/
+      - RABBITMQ_URL=amqp://${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}
+      - RABBITMQ_USER=${RABBITMQ_USER:-chithanh}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-chithanh}
+      - USE_MESSAGE_BROKER=true
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
+      - USE_REDIS_CACHE=true
+      - LOG_LEVEL=info
+    depends_on:
+      - consul
+      - rabbitmq
+      - redis
+    networks:
+      - qlpt-network
+
+networks:
+  qlpt-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  redis_data:

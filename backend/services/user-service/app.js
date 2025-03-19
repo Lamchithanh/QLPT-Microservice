@@ -5,12 +5,14 @@ const helmet = require("helmet");
 const xss = require("xss-clean");
 const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
+const logger = require("./config/logger");
 
 const userRoutes = require("./routes/userRoutes");
 const landlordRoutes = require("./routes/landlordRoutes");
 const tenantRoutes = require("./routes/tenantRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const passwordResetRoutes = require("./routes/passwordResetRoutes");
+const testRoutes = require("./routes/testRoutes");
 
 const app = express();
 
@@ -44,6 +46,7 @@ app.use("/api/landlords", landlordRoutes);
 app.use("/api/tenants", tenantRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/password-reset", passwordResetRoutes);
+app.use("/api/test", testRoutes);
 
 // Route mặc định
 app.get("/", (req, res) => {
@@ -55,6 +58,7 @@ app.get("/", (req, res) => {
 
 // Xử lý route không tồn tại
 app.all("*", (req, res) => {
+  logger.warn(`Route not found: ${req.originalUrl}`);
   res.status(404).json({
     success: false,
     message: `Route ${req.originalUrl} không tồn tại`,
@@ -63,12 +67,15 @@ app.all("*", (req, res) => {
 
 // Xử lý lỗi toàn cục
 app.use((err, req, res, next) => {
-  console.error("Lỗi:", err);
+  const statusCode = err.statusCode || 500;
+  const status = err.status || "error";
 
-  res.status(err.statusCode || 500).json({
+  logger.error(`Error ${statusCode}: ${err.message}`, { stack: err.stack });
+
+  res.status(statusCode).json({
     success: false,
     message: err.message || "Lỗi server",
-    error: process.env.NODE_ENV === "development" ? err : {},
+    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
   });
 });
 

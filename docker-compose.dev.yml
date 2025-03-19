@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: always
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - qlpt-network
+
+  # Redis (Caching)
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - qlpt-network
+
+  # Consul (Service Discovery)
+  consul:
+    image: hashicorp/consul:latest
+    container_name: consul
+    ports:
+      - "${CONSUL_PORT:-8500}:8500"
+      - "8600:8600/udp"
+    command: "agent -dev -ui -client=0.0.0.0"
+    networks:
+      - qlpt-network
+
+  # RabbitMQ (Message Broker)
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
+    networks:
+      - qlpt-network
+
+networks:
+  qlpt-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  redis_data:

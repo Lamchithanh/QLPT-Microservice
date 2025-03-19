@@ -20,6 +20,7 @@
     "morgan": "^1.10.0",
     "qlpt-user-service": "file:",
     "validator": "^13.11.0",
+    "winston": "^3.17.0",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {

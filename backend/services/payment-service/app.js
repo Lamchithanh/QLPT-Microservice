@@ -8,6 +8,8 @@ const mongoSanitize = require("express-mongo-sanitize");
 const paymentRoutes = require("./routes/paymentRoutes");
 const contractRoutes = require("./routes/contractRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
+const vnpayRoutes = require("./routes/vnpay.routes");
+const logger = require("./config/logger");
 
 // Khởi tạo app
 const app = express();
@@ -47,9 +49,11 @@ app.get("/", (req, res) => {
 app.use("/api/payments", paymentRoutes);
 app.use("/api/contracts", contractRoutes);
 app.use("/api/invoices", invoiceRoutes);
+app.use("/api/payments/vnpay", vnpayRoutes);
 
 // Xử lý route không tồn tại
 app.all("*", (req, res) => {
+  logger.warn(`Route not found: ${req.originalUrl}`);
   res.status(404).json({
     status: "error",
     message: `Không tìm thấy ${req.originalUrl} trên server này!`,
@@ -60,6 +64,8 @@ app.all("*", (req, res) => {
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
   const status = err.status || "error";
+
+  logger.error(`Error ${statusCode}: ${err.message}`, { stack: err.stack });
 
   res.status(statusCode).json({
     status,
